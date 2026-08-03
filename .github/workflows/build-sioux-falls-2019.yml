@@ -1,0 +1,81 @@
+name: Build Sioux Falls 2019 tornado case data
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hrrr:
+    name: HRRR forecast package
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install HRRR renderer
+        run: python -m pip install -r github_hrrr_builder/requirements.txt
+      - name: Build 18 UTC forecast valid through the tornado window
+        run: >-
+          python github_hrrr_builder/build_case.py
+          --case-id "sioux_falls_tornado_2019"
+          --run-date "20190910"
+          --run-hour "18"
+          --f-start "7"
+          --f-end "12"
+          --f-step "1"
+          --products "temp,dewpoint,radar,winds,cape,pressure"
+      - name: Publish stable HRRR Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="case-sioux_falls_tornado_2019"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "HRRR: Sioux Falls tornado 2019" --notes "18 UTC September 10 HRRR forecast, valid 01-06 UTC September 11."
+          gh release upload "$tag" output/*.zip --clobber
+      - uses: actions/upload-artifact@v6
+        with:
+          name: hrrr-sioux-falls-tornado-2019
+          path: output/*.zip
+          retention-days: 30
+
+  narr:
+    name: NARR wind-particle package
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install NARR particle builder
+        run: python -m pip install -r github_particle_builder/requirements.txt
+      - name: Build surface and 500-mb analyzed winds
+        run: >-
+          python github_particle_builder/build_particles.py
+          --case-id "sioux_falls_tornado_2019"
+          --start-utc "2019-09-10T21"
+          --end-utc "2019-09-11T06"
+          --step-hours "3"
+          --products "surface,500mb"
+          --south "39"
+          --west "-103"
+          --north "48"
+          --east "-91"
+          --spacing "0.35"
+      - name: Publish stable NARR Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="particles-sioux_falls_tornado_2019"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "NARR particles: Sioux Falls tornado 2019" --notes "NOAA NARR 10-m and 500-mb winds from 21 UTC September 10 through 06 UTC September 11."
+          gh release upload "$tag" output/NARR_particles_*.zip --clobber
+      - uses: actions/upload-artifact@v6
+        with:
+          name: narr-sioux-falls-tornado-2019
+          path: output/NARR_particles_*.zip
+          retention-days: 30
