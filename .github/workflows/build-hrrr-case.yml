@@ -38,8 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -64,7 +64,7 @@ jobs:
           gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "HRRR case: ${CASE_ID}" --notes "Pre-rendered Weather Discovery Lab HRRR package."
           gh release upload "$tag" output/*.zip --clobber
       - name: Keep a workflow artifact copy
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: hrrr-${{ inputs.case_id }}
           path: output/*.zip
