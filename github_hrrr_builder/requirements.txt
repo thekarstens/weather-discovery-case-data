@@ -1,0 +1,6 @@
+requests==2.32.3
+numpy>=1.26,<2.3
+xarray>=2024.10,<2027
+cfgrib>=0.9.15,<0.10
+eccodes>=2.39,<3
+matplotlib>=3.10,<3.12

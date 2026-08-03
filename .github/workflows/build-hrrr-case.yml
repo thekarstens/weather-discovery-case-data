@@ -1,0 +1,71 @@
+name: Build HRRR case package
+
+on:
+  workflow_dispatch:
+    inputs:
+      case_id:
+        description: Case folder ID, for example sioux_falls_2019
+        required: true
+      run_date:
+        description: HRRR run date in YYYYMMDD
+        required: true
+      run_hour:
+        description: HRRR initialization hour UTC
+        required: true
+        default: "12"
+      forecast_start:
+        description: First forecast hour
+        required: true
+        default: "0"
+      forecast_end:
+        description: Last forecast hour
+        required: true
+        default: "12"
+      forecast_step:
+        description: Forecast-hour step
+        required: true
+        default: "1"
+      products:
+        description: Comma-separated temp,dewpoint,radar,winds,cape,pressure
+        required: true
+        default: temp,dewpoint,radar,winds,cape,pressure
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install HRRR renderer
+        run: python -m pip install -r github_hrrr_builder/requirements.txt
+      - name: Download, crop, render, and package HRRR
+        run: >-
+          python github_hrrr_builder/build_case.py
+          --case-id "${{ inputs.case_id }}"
+          --run-date "${{ inputs.run_date }}"
+          --run-hour "${{ inputs.run_hour }}"
+          --f-start "${{ inputs.forecast_start }}"
+          --f-end "${{ inputs.forecast_end }}"
+          --f-step "${{ inputs.forecast_step }}"
+          --products "${{ inputs.products }}"
+      - name: Publish package as a stable GitHub Release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CASE_ID: ${{ inputs.case_id }}
+        run: |
+          tag="case-${CASE_ID}"
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --title "HRRR case: ${CASE_ID}" --notes "Pre-rendered Weather Discovery Lab HRRR package."
+          gh release upload "$tag" output/*.zip --clobber
+      - name: Keep a workflow artifact copy
+        uses: actions/upload-artifact@v4
+        with:
+          name: hrrr-${{ inputs.case_id }}
+          path: output/*.zip
+          retention-days: 30
